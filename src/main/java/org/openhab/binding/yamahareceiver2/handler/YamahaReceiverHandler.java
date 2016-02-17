@@ -48,6 +48,9 @@ public class YamahaReceiverHandler extends BaseThingHandler {
         super(thing);
     }
 
+    /**
+     * We handle updates of this thing ourself.
+     */
     @Override
     protected void updateThing(Thing thing) {
         this.thing = thing;
@@ -62,19 +65,17 @@ public class YamahaReceiverHandler extends BaseThingHandler {
         // Check if refresh configuration has changed
         Integer interval_config = (Integer) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_REFRESH);
         if (interval_config != null && interval_config != refrehInterval) {
-            setupRefreshTimer();
+            setupRefreshTimer(60 * 1000);
         }
     }
 
+    /**
+     *
+     */
     @Override
     public void initialize() {
-        host = thing.getProperties().get(YamahaReceiverBindingConstants.CONFIG_HOST_NAME);
-        String host_config = (String) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_HOST_NAME);
-
-        // Case: Initialized after loading thing from disk
-        if (host == null) {
-            host = host_config;
-        }
+        Configuration config = thing.getConfiguration();
+        host = (String) config.get(YamahaReceiverBindingConstants.CONFIG_HOST_NAME);
 
         // Case: Lost host name somehow. This thing cannot be used any longer.
         if (host == null) {
@@ -82,16 +83,13 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             return;
         }
 
-        // Case: Initialized by the discovery service.
-        // Save host name to configuration now.
-        if (host_config == null) {
-            Configuration config = editConfiguration();
-            config.put((String) YamahaReceiverBindingConstants.CONFIG_HOST_NAME, host);
-            updateConfiguration(config);
-        }
         createCommunicationObject();
     }
 
+    /**
+     * We create a YamahaReceiverState that handles the current state (loudness, power, input etc)
+     * and a communication object.
+     */
     private void createCommunicationObject() {
         String zoneName = thing.getProperties().get(YamahaReceiverBindingConstants.CONFIG_ZONE);
         if (zoneName == null) {
@@ -101,8 +99,14 @@ public class YamahaReceiverHandler extends BaseThingHandler {
         Zone zone = YamahaReceiverCommunication.Zone.valueOf(zoneName);
 
         state = new YamahaReceiverState(new YamahaReceiverCommunication(host, zone));
+        try {
+            state.updateDeviceInformation();
+        } catch (IOException e) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
+            return;
+        }
         updateReceiverState();
-        setupRefreshTimer();
+        setupRefreshTimer(1000);
 
         // If we are the main zone, detect other zones now.
         if (zone == Zone.Main_Zone) {
@@ -112,7 +116,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
         }
     }
 
-    private void setupRefreshTimer() {
+    private void setupRefreshTimer(int initial_wait_time) {
         if (state == null) {
             return;
         }
@@ -133,7 +137,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             public void run() {
                 updateReceiverState();
             }
-        }, 60 * 1000, 60 * 1000 * interval_config);
+        }, initial_wait_time, 60 * 1000 * interval_config);
 
         refrehInterval = interval_config;
     }
@@ -148,6 +152,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             updateState(YamahaReceiverBindingConstants.CHANNEL_VOLUME, new DecimalType(state.getVolume()));
             updateState(YamahaReceiverBindingConstants.CHANNEL_MUTE, state.isMute() ? OnOffType.ON : OnOffType.OFF);
             updateState(YamahaReceiverBindingConstants.CHANNEL_NETRADIO_TUNE, new DecimalType(state.netRadioChannel));
+            logger.info("State upddated!");
         } catch (IOException e) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, e.getMessage());
         }

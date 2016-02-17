@@ -71,6 +71,30 @@ The implemented channels are so far:
 Hint: The tricky thing are the `"` around `NET RADIO`, this Key (left from the equal sign) is a value that must be send to the receiver **with** the space inside. If you omit the `"` the binding sends only the `NET` and the receiver do's nothing. 
 Same are in surround definition!
 
+## Implementation
+An overview is presented with the following diagram:
+![Class Diagram](doc/classes.png "Class Diagram")
+
+The control flow is visualiased here:
+![ControlFlow](doc/ControlFlow.png "ControlFlow")
+
+The YamahaReceiverCommunication class is a pure protocol implementation.
+Yamaha uses a XML API. The receiver does not allow long polling or any
+other type of state-update notification, therefore we use a timer for
+periodically refreshing the state.
+
+The thing handler needs a host and zone configuration that is usually
+given by the discovery service (YamahaDiscoveryParticipant via UPNP).
+createCommunicationObject() is called in initialize(). There we create
+a communication object (YamahaReceiverCommunication) which needs the host
+and zone parameters and hand it over to a newly created YamahaReceiverState.
+We also setup the refresh timer.
+
+There is a second discovery service, the ZoneDiscoveryService which is created
+and used in createCommunicationObject() if we are the thing handler for the Main_Zone.
+For every other zone a discovery result will be generated and can be added by the user.
+
+
 ## Authors
  * David Gräff <david.graeff@tu-dortmund.de>, 2016
  * Eric Thill

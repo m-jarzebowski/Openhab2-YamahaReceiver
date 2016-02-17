@@ -41,10 +41,24 @@ public class YamahaReceiverState {
         this.com = com;
     }
 
+    /**
+     * We need that called only once. Will give us name, id, version and
+     * zone information.
+     *
+     * @throws IOException
+     */
+    public void updateDeviceInformation() throws IOException {
+        com.updateDeviceInformation(this);
+        com.updateInputsList(this);
+    }
+
+    /**
+     * Update power, input, surround, volume and mute information
+     * 
+     * @throws IOException
+     */
     public void updateState() throws IOException {
         com.updateState(this);
-        com.updateInputsList(this);
-        com.updateDeviceInformation(this);
     }
 
     public Zone getZone() {
@@ -77,6 +91,11 @@ public class YamahaReceiverState {
 
     public void setPower(boolean power) throws IOException {
         com.setPower(power);
+        // If the device was off and no goes on, we refetch device information.
+        // The user could have renamed some of the inputs etc.
+        if (!this.power && power) {
+            updateDeviceInformation();
+        }
         this.power = power;
     }
 
