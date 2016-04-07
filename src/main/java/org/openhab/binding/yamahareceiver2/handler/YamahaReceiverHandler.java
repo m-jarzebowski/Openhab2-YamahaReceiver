@@ -8,6 +8,7 @@
 package org.openhab.binding.yamahareceiver2.handler;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -25,6 +26,7 @@ import org.openhab.binding.yamahareceiver2.YamahaReceiverBindingConstants;
 import org.openhab.binding.yamahareceiver2.discovery.ZoneDiscoveryService;
 import org.openhab.binding.yamahareceiver2.internal.YamahaReceiverState;
 import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication;
+import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication.Scale;
 import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication.Zone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +41,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
 
     private Logger logger = LoggerFactory.getLogger(YamahaReceiverHandler.class);
     private String host;
+    private Scale scale;
     private int refrehInterval = 0;
     private YamahaReceiverState state = null;
     private Timer refreshTimer;
@@ -59,6 +62,14 @@ public class YamahaReceiverHandler extends BaseThingHandler {
         String host_config = (String) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_HOST_NAME);
         if (host_config != null && !host_config.equals(host)) {
             host = host_config;
+            createCommunicationObject();
+        }
+
+        // Check if scale configuration has changed
+        Scale scale_config = Scale
+                .valueOf((String) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_SCALE));
+        if (scale_config != null && !scale_config.equals(scale)) {
+            scale = scale_config;
             createCommunicationObject();
         }
 
@@ -83,6 +94,12 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             return;
         }
 
+        scale = Scale.valueOf((String) config.get(YamahaReceiverBindingConstants.CONFIG_SCALE));
+        if (host == null) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, "Scale not set!");
+            return;
+        }
+
         createCommunicationObject();
     }
 
@@ -98,7 +115,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
 
         Zone zone = YamahaReceiverCommunication.Zone.valueOf(zoneName);
 
-        state = new YamahaReceiverState(new YamahaReceiverCommunication(host, zone));
+        state = new YamahaReceiverState(new YamahaReceiverCommunication(host, zone, scale));
         try {
             state.updateDeviceInformation();
         } catch (IOException e) {
@@ -121,12 +138,8 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             return;
         }
 
-        Integer interval_config = (Integer) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_REFRESH);
-
-        // Default is every 5min
-        if (interval_config == null) {
-            interval_config = new Integer(5);
-        }
+        int interval_config = ((BigDecimal) thing.getConfiguration().get(YamahaReceiverBindingConstants.CONFIG_REFRESH))
+                .intValue();
 
         if (refreshTimer != null) {
             refreshTimer.cancel();
@@ -137,7 +150,7 @@ public class YamahaReceiverHandler extends BaseThingHandler {
             public void run() {
                 updateReceiverState();
             }
-        }, initial_wait_time, 60 * 1000 * interval_config);
+        }, initial_wait_time, 1000 * interval_config);
 
         refrehInterval = interval_config;
     }

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication;
+import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication.Scale;
 import org.openhab.binding.yamahareceiver2.internal.protocol.YamahaReceiverCommunication.Zone;
 
 /**
@@ -54,7 +55,7 @@ public class YamahaReceiverState {
 
     /**
      * Update power, input, surround, volume and mute information
-     * 
+     *
      * @throws IOException
      */
     public void updateState() throws IOException {
@@ -63,6 +64,10 @@ public class YamahaReceiverState {
 
     public Zone getZone() {
         return com.getZone();
+    }
+
+    public Scale getScale() {
+        return com.getScale();
     }
 
     public boolean isPower() {

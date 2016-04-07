@@ -36,6 +36,7 @@ public class YamahaReceiverBindingConstants {
 
     public static final Object CONFIG_REFRESH = "REFRESH";
     public static final Object CONFIG_HOST_NAME = "HOST";
+    public static final Object CONFIG_SCALE = "SCALE";
     public static final Object CONFIG_ZONE = "ZONE";
 
 }

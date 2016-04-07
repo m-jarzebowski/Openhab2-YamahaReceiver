@@ -40,6 +40,7 @@ public class ZoneDiscoveryService extends AbstractDiscoveryService {
     public void detectZones(YamahaReceiverState state, String base_udn) {
         Map<String, Object> properties = new HashMap<>(3);
         properties.put((String) YamahaReceiverBindingConstants.CONFIG_HOST_NAME, state.getHost());
+        properties.put((String) YamahaReceiverBindingConstants.CONFIG_SCALE, state.getScale());
 
         for (Zone zone : state.additional_zones) {
             String zoneName = zone.name();

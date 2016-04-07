@@ -49,11 +49,18 @@ public class YamahaReceiverCommunication {
         Zone_4;
     }
 
+    public enum Scale {
+        Percent,
+        dB;
+    }
+
     /**
      * The volume min and max is the same for all supported devices.
      */
     public static final int VOLUME_MIN = -80;
     public static final int VOLUME_MAX = 16;
+    public static final int VOLUME_RANGE_SIZE = VOLUME_MAX - VOLUME_MIN;
+    public static final float VOLUME_STEP_PER_PERCENT = (float) VOLUME_RANGE_SIZE / 100;
 
     // We need a lot of xml parsing. Create a document builder beforehand.
     private final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -62,12 +69,15 @@ public class YamahaReceiverCommunication {
     private final String host;
     private final Zone zone;
 
+    private final Scale scale;
+
     // Creates a yamaha protol connection object.
     // All commands always refer to a zone. A protocol connection object
     // therefore consists of a host address and a zone.
-    public YamahaReceiverCommunication(String host, Zone zone) {
+    public YamahaReceiverCommunication(String host, Zone zone, Scale scale) {
         this.host = host;
         this.zone = zone;
+        this.scale = scale;
     }
 
     /**
@@ -82,6 +92,55 @@ public class YamahaReceiverCommunication {
      */
     public Zone getZone() {
         return zone;
+    }
+
+    /**
+     * Return the scale
+     */
+    public Scale getScale() {
+        return scale;
+    }
+
+    private float roundOneDecimalPlace(float value) {
+
+        return Math.round(value * 10) / (float) 10;
+    }
+
+    // Calculate dB from percents and round to one decimal place
+    private float calculateDBVolume(float volume) {
+
+        return roundOneDecimalPlace(
+                VOLUME_MIN + (VOLUME_STEP_PER_PERCENT * volume));
+    }
+
+    // Calculate percents from dB and round to one decimal place
+    private float calculatePercentVolume(float volume) {
+
+        return roundOneDecimalPlace(((volume - VOLUME_MIN) / VOLUME_RANGE_SIZE) * 100);
+    }
+
+    private int prepareVolumeSend(float volume) {
+
+        if (getScale().equals(Scale.Percent)) {
+
+            return (int) calculateDBVolume(volume) * 10;
+        } else {
+
+            return (int) volume * 10;
+        }
+    }
+
+    private float prepareVolumeReceived(float volume) {
+
+        float dBVolume = volume * .1f;
+
+        if (getScale().equals(Scale.Percent)) {
+
+            return calculatePercentVolume(dBVolume);
+        } else {
+
+            return dBVolume;
+        }
     }
 
     public void updateDeviceInformation(YamahaReceiverState state) throws IOException {
@@ -141,8 +200,8 @@ public class YamahaReceiverCommunication {
 
     public void setVolume(float volume) throws IOException {
         postAndGetResponse("<?xml version=\"1.0\" encoding=\"utf-8\"?><YAMAHA_AV cmd=\"PUT\"><" + getZone()
-                + "><Volume><Lvl><Val>" + (int) (volume * 10) + "</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></"
-                + getZone() + "></YAMAHA_AV>");
+                + "><Volume><Lvl><Val>" + prepareVolumeSend(volume)
+                + "</Val><Exp>1</Exp><Unit>dB</Unit></Lvl></Volume></" + getZone() + "></YAMAHA_AV>");
     }
 
     public void setMute(boolean mute) throws IOException {
@@ -195,7 +254,7 @@ public class YamahaReceiverCommunication {
 
         node = getNode(basicStatus, "Volume/Lvl/Val");
         value = node != null ? node.getTextContent() : String.valueOf(VOLUME_MIN);
-        state.volume = Float.parseFloat(value) * .1f;
+        state.volume = prepareVolumeReceived(Float.parseFloat(value));
 
         node = getNode(basicStatus, "Volume/Mute");
         value = node != null ? node.getTextContent() : "";
