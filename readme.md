@@ -16,6 +16,7 @@ tested Receivers:
 * RX-A1050 (Aventage)
 * RX-A2020
 * RX-A810
+* RX-A870
 * RX-S601D
 * RX-V677
 * HTR-4065
